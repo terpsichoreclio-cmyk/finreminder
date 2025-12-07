@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinReminder 💰</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    function FinReminder() {
+      const [step, setStep] = React.useState('setup');
+      const [formData, setFormData] = React.useState({
+        spreadsheetId: '',
+        botToken: '',
+        chatId: ''
+      });
+      const [reminders, setReminders] = React.useState([]);
+      const [newReminder, setNewReminder] = React.useState({
+        id: '',
+        type: 'Депозит',
+        provider: '',
+        amount: '',
+        currency: 'UAH',
+        dueDate: '',
+        status: 'Active'
+      });
+      const [savedSettings, setSavedSettings] = React.useState(false);
+
+      const handleSetupChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      };
+
+      const handleSaveSetup = () => {
+        if (formData.spreadsheetId && formData.botToken && formData.chatId) {
+          localStorage.setItem('finreminder_settings', JSON.stringify(formData));
+          setSavedSettings(true);
+          setStep('dashboard');
+          setTimeout(() => setSavedSettings(false), 2000);
+        } else {
+          alert('Заповніть всі поля!');
+        }
+      };
+
+      const handleReminderChange = (e) => {
+        const { name, value } = e.target;
+        setNewReminder(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      };
+
+      const handleAddReminder = () => {
+        if (newReminder.id && newReminder.provider && newReminder.amount && newReminder.dueDate) {
+          setReminders(prev => [...prev, { ...newReminder, createdAt: new Date().toISOString() }]);
+          setNewReminder({
+            id: '',
+            type: 'Депозит',
+            provider: '',
+            amount: '',
+            currency: 'UAH',
+            dueDate: '',
+            status: 'Active'
+          });
+        } else {
+          alert('Заповніть всі поля!');
+        }
+      };
+
+      const handleDeleteReminder = (index) => {
+        setReminders(prev => prev.filter((_, i) => i !== index));
+      };
+
+      const getDaysUntil = (dateStr) => {
+        const today = new Date();
+        const dueDate = new Date(dateStr);
+        const diff = dueDate - today;
+        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        return days;
+      };
+
+      const getStatusColor = (days) => {
+        if (days < 0) return 'bg-red-100 border-red-300 text-red-800';
+        if (days <= 1) return 'bg-red-100 border-red-300 text-red-800';
+        if (days <= 7) return 'bg-yellow-100 border-yellow-300 text-yellow-800';
+        return 'bg-green-100 border-green-300 text-green-800';
+      };
+
+      const getTypeEmoji = (type) => {
+        const emojis = { 'Депозит': '💰', 'ОВДП': '📊', 'Кредит': '💳' };
+        return emojis[type] || '📦';
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-4xl font-bold text-gray-800 mb-2">FinReminder 💰</h1>
+              <p className="text-gray-600">Розумний асистент управління депозитами, ОВДП та кредитами</p>
+            </div>
+
+            {step === 'setup' && (
+              <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <h2 className="text-2xl font-bold text-gray-800">⚙️ Налаштування</h2>
+                </div>
+
+                <p className="text-gray-600 mb-6">
+                  Введіть дані вашої Google Sheets таблиці та Telegram бота для синхронізації:
+                </p>
+
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Spreadsheet ID (з URL Google Sheets)
+                    </label>
+                    <input
+                      type="text"
+                      name="spreadsheetId"
+                      value={formData.spreadsheetId}
+                      onChange={handleSetupChange}
+                      placeholder="1a2b3c4d5e6f7g8h9i0j"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Знайдіть у URL: docs.google.com/spreadsheets/d/<b>СЮДИ_КОПІЮЙТЕ</b>/edit
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Telegram Bot Token
+                    </label>
+                    <input
+                      type="password"
+                      name="botToken"
+                      value={formData.botToken}
+                      onChange={handleSetupChange}
+                      placeholder="123456:ABC-DEF1234..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Telegram Chat ID
+                    </label>
+                    <input
+                      type="text"
+                      name="chatId"
+                      value={formData.chatId}
+                      onChange={handleSetupChange}
+                      placeholder="987654321"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {savedSettings && (
+                  <div className="mb-6 flex items-center gap-2 p-4 bg-green-100 border border-green-300 rounded-lg text-green-800">
+                    <span>✓ Налаштування збережені!</span>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleSaveSetup}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors"
+                >
+                  Зберегти та Продовжити
+                </button>
+              </div>
+            )}
+
+            {step === 'dashboard' && (
+              <>
+                <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-6">Додати новий запис</h2>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <input
+                      type="text"
+                      name="id"
+                      value={newReminder.id}
+                      onChange={handleReminderChange}
+                      placeholder="ID (DEP-001)"
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+
+                    <select
+                      name="type"
+                      value={newReminder.type}
+                      onChange={handleReminderChange}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option>Депозит</option>
+                      <option>ОВДП</option>
+                      <option>Кредит</option>
+                    </select>
+
+                    <input
+                      type="text"
+                      name="provider"
+                      value={newReminder.provider}
+                      onChange={handleReminderChange}
+                      placeholder="Провайдер (Monobank)"
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+
+                    <input
+                      type="number"
+                      name="amount"
+                      value={newReminder.amount}
+                      onChange={handleReminderChange}
+                      placeholder="Сума"
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+
+                    <select
+                      name="currency"
+                      value={newReminder.currency}
+                      onChange={handleReminderChange}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option>UAH</option>
+                      <option>USD</option>
+                      <option>EUR</option>
+                    </select>
+
+                    <input
+                      type="date"
+                      name="dueDate"
+                      value={newReminder.dueDate}
+                      onChange={handleReminderChange}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleAddReminder}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors"
+                  >
+                    ➕ Додати запис
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {reminders.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow p-8 text-center">
+                      <p className="text-gray-500 text-lg">Немає записів. Додайте перший запис!</p>
+                    </div>
+                  ) : (
+                    reminders.map((reminder, index) => {
+                      const daysUntil = getDaysUntil(reminder.dueDate);
+                      const statusClass = getStatusColor(daysUntil);
+
+                      return (
+                        <div key={index} className={`bg-white rounded-lg shadow-lg p-6 border-l-4 ${
+                          daysUntil <= 1 ? 'border-red-500' : 
+                          daysUntil <= 7 ? 'border-yellow-500' : 
+                          'border-green-500'
+                        }`}>
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <span className="text-3xl">{getTypeEmoji(reminder.type)}</span>
+                              <div>
+                                <h3 className="text-xl font-bold text-gray-800">{reminder.id}</h3>
+                                <p className="text-gray-600">{reminder.provider}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteReminder(index)}
+                              className="text-red-500 hover:text-red-700 transition-colors"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase">Тип</p>
+                              <p className="font-semibold text-gray-800">{reminder.type}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase">Сума</p>
+                              <p className="font-semibold text-gray-800">{reminder.amount} {reminder.currency}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase">Дата</p>
+                              <p className="font-semibold text-gray-800">{reminder.dueDate}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 uppercase">Статус</p>
+                              <p className="font-semibold text-gray-800">{reminder.status}</p>
+                            </div>
+                          </div>
+
+                          <div className={`px-4 py-2 rounded-lg font-semibold text-center ${statusClass}`}>
+                            {daysUntil < 0
+                              ? `⏰ Простроченно на ${Math.abs(daysUntil)} днів`
+                              : daysUntil === 0
+                              ? '🔴 СЬОГОДНІ!'
+                              : `⏰ Через ${daysUntil} днів`
+                            }
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <button
+                  onClick={() => {
+                    setStep('setup');
+                    setReminders([]);
+                  }}
+                  className="mt-8 w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 rounded-lg transition-colors"
+                >
+                  ⚙️ Змінити налаштування
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<FinReminder />);
+  </script>
+</body>
+</html>
+```
+
+---
+
+## 📝 Як додати на GitHub:
+
+1. На сторінці вашого репозиторію натисніть **"Add file"** → **"Create new file"**
+2. У поле для назви напишіть: **`public/index.html`** (важливо з папкою!)
+3. Скопіюйте весь код вище
+4. Натисніть **"Commit new file"**
+
+✅ Файл у папці `public` готовий!
+
+---
+
+## 📋 Тепер у вас мають бути 3 файли:
+```
+finreminder/
+├── package.json ✅
+├── server.js ✅
+└── public/
+    └── index.html ✅
